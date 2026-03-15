@@ -32,6 +32,7 @@ I'm learning **diffusion models** from scratch to eventually understand and impl
 - **My setup:** macOS with uv-managed Python, MuJoCo installed, L40 GPU available for heavy training
 - **PyTorch patterns I'm comfortable with:** nn.Module, forward(), DataLoader, optimizer.zero_grad/loss.backward/optimizer.step
 - **PyTorch patterns I may need help with:** custom dataset classes, einops, advanced tensor indexing, distributed training
+- **uv workflow:** uses `uv run` / venv activation, understands `pyproject.toml` + `uv.lock` for reproducibility
 
 ## Project Structure
 
@@ -50,8 +51,13 @@ exercise_6/                         — DIAMOND (real repo)
 These don't need re-explanation:
 
 - **Forward diffusion:** `x_t = sqrt(alpha_bar_t) * x_0 + sqrt(1 - alpha_bar_t) * epsilon` — adds noise at any timestep directly
-- **Noise schedule:** betas increase linearly, alpha_bars = cumprod(1 - betas), controls noise level
+- **Noise schedule:** betas increase linearly, alpha_bars = cumprod(1 - betas), controls noise level. Beta goes to 0.02 not 1.0 because signal destruction happens cumulatively over 1000 steps.
 - **Training loss:** MSE between predicted noise and actual noise — it's just regression
+- **Why train at all timesteps:** network needs to handle every noise level; trained only at t=999 it sees pure noise with nothing to learn; trained only at t=1 it fails at generation time which starts from pure noise
+- **Why variance is preserved:** `sqrt(alpha_bar) * signal + sqrt(1 - alpha_bar) * noise` keeps total variance = 1 because a² + b² = 1
+- **Sinusoidal embedding:** expands integer timestep t into a 32-dim vector using exponentially spaced sin/cos frequencies. Needed because the network must know the noise level to predict correctly.
+- **Sampling reverse step:** start from randn, iteratively apply `x_{t-1} = (1/sqrt(alpha_t)) * (x_t - (beta_t/sqrt(1-alpha_bar_t)) * eps_pred) + sqrt(beta_t) * z`
+- **Why z (fresh noise) in sampling:** keeps generation stochastic; without it all samples converge to same output. z=0 at t=0 to avoid dirtying final output.
 - **U-Net:** encoder-decoder with skip connections. Timestep injected via sinusoidal embedding added to each block
 - **Sampling:** start from pure noise, iteratively predict and remove noise using the trained network
 - **Action conditioning:** embed the action, add it alongside timestep embedding in each U-Net block
@@ -76,6 +82,11 @@ Ask me about these before assuming I understand:
 - Not reshaping timestep embeddings before adding to conv feature maps (need [B, C, 1, 1])
 - Mixing up which dimension is batch vs channel vs spatial in conv ops
 - Forgetting to normalize input images to [-1, 1] range before training
+- Using `math.sqrt` on tensors instead of `torch.sqrt`
+- Passing plain integer `t` to the model instead of a batched tensor `t_batch`
+- Shape mismatches when multiplying `[batch]` × `[batch, 2]` — need `[:, None]` to broadcast
+- Variable name collisions (e.g. reusing `T` for both total timesteps and batch timesteps)
+- Using system Python instead of venv Python when running scripts
 
 ## When I Say...
 

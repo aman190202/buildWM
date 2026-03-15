@@ -5,14 +5,16 @@ import torch.nn.functional as F
 import math
 import matplotlib.pyplot as plt
 
+device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+
 @torch.no_grad()
 def sample(model, alpha_bars, T=1000, num_samples=5000):
-    betas = torch.linspace(0.0001, 0.02, T)
+    betas = torch.linspace(0.0001, 0.02, T).to(device)
     alphas = 1.0 - betas
-    x_t = torch.randn(num_samples, 2)
+    x_t = torch.randn(num_samples, 2).to(device)
     
     for t in reversed(range(T)):
-        t_batch = torch.full((num_samples,), t, dtype=torch.long)
+        t_batch = torch.full((num_samples,), t, dtype=torch.long).to(device)
         eps_pred = model(x_t, t_batch)
         z = torch.randn_like(x_t) if t > 0 else 0
         x_t = (1/torch.sqrt(alphas[t])) * (x_t - (betas[t]/torch.sqrt(1 - alpha_bars[t])) * eps_pred) + torch.sqrt(betas[t]) * z
@@ -23,7 +25,7 @@ def sample(model, alpha_bars, T=1000, num_samples=5000):
 
 def sinusoidal_embedding(t , dim = 32):
     half_dim = dim // 2
-    freqs = torch.exp(-math.log(10000) * torch.arange(half_dim) / half_dim)
+    freqs = torch.exp(-math.log(10000) * torch.arange(half_dim) / half_dim).to(device)
     args = t[:, None] * freqs[None, :]
     return torch.cat([torch.sin(args), torch.cos(args)],dim = -1)
 
@@ -71,7 +73,7 @@ if __name__=='__main__':
     y = theta * torch.sin(theta)
     data = torch.stack([x, y], dim=1)  # shape [1000, 2]
 
-    alpha_bars = get_noise_schedule()
+    alpha_bars = get_noise_schedule().to(device)
 
     # timesteps = [0, 250, 500, 750, 999]
     # fig, axes = plt.subplots(1, 5, figsize=(20, 4))
@@ -88,13 +90,13 @@ if __name__=='__main__':
     # plt.savefig('exercise_1/forward_diffusion.png')
     # plt.show()
 
-    model = NoisePredictor()
+    model = NoisePredictor().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = 1e-3)
     num_epochs = 10000
 
     for epoch in range(num_epochs):
-        batch = data[torch.randint(0,999,size=(64,))]
-        t_batch = torch.randint(0,999,size=(64,))
+        batch = data[torch.randint(0,999,size=(64,))].to(device)
+        t_batch = torch.randint(0,999,size=(64,)).to(device)
         x_t, epsilon = forward_diffusion(batch, t_batch, alpha_bars)
         epsilon_pred = model(x_t, t_batch)
         loss = F.mse_loss(epsilon_pred, epsilon)
@@ -107,9 +109,8 @@ if __name__=='__main__':
         optimizer.step()
 
 
-
     # generate and plot
-    generated = sample(model, alpha_bars)
+    generated = sample(model, alpha_bars).to('cpu')
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     axes[0].scatter(data[:, 0], data[:, 1], s=2, alpha=0.5)
@@ -121,7 +122,7 @@ if __name__=='__main__':
     axes[1].set_aspect('equal')
 
     plt.tight_layout()
-    plt.savefig('exercise_1/generated_spiral.png')
+    plt.savefig('diffusion_toy/generated_spiral.png')
     plt.show()
 
 

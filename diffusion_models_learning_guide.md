@@ -7,12 +7,14 @@
 **Setup:** Python 3.11+, PyTorch 2.x, matplotlib, tqdm. A MacBook CPU is fine for exercises 1-3. GPU (your L40) needed for exercises 4-5.
 
 ```bash
-pip install torch torchvision matplotlib tqdm
+uv sync
 ```
+
+**Progress:** Exercises 1-3 completed in `diffusion_toy/main.py`. Exercises 4-6 are next.
 
 ---
 
-## Exercise 1: The Forward Process (Destroying Data)
+## ✓ Exercise 1: The Forward Process (Destroying Data)
 
 **Goal:** Understand how clean data gets progressively noised. No neural network yet.
 
@@ -81,7 +83,7 @@ Where:
 
 ---
 
-## Exercise 2: The Noise Prediction Network
+## ✓ Exercise 2: The Noise Prediction Network
 
 **Goal:** Build and train a tiny neural network that predicts what noise was added to data.
 
@@ -159,7 +161,7 @@ That's it. Same as regression.
 
 ---
 
-## Exercise 3: Sampling (Generating New Data)
+## ✓ Exercise 3: Sampling (Generating New Data)
 
 **Goal:** Use your trained network to generate new spiral points from pure noise.
 

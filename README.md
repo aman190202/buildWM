@@ -19,11 +19,11 @@ uv sync
 
 ## Exercises
 
-| # | Topic | Directory |
-|---|-------|-----------|
-| 1 | PyTorch and forward diffusion | `exercise_1/` |
-| 2 | Noise prediction network | `exercise_2/` |
-| 3 | Sampling loop | `exercise_3/` |
-| 4 | U-Net on MNIST | `exercise_4/` |
-| 5 | Action-conditioned generation | `exercise_5/` |
-| 6 | DIAMOND (real world model) | `exercise_6/` |
+| # | Topic | Location | Status |
+|---|-------|----------|--------|
+| 1 | Forward diffusion on 2D spiral | `diffusion_toy/main.py` | Done |
+| 2 | Noise prediction MLP + training loop | `diffusion_toy/main.py` | Done |
+| 3 | Sampling loop — generate new spirals | `diffusion_toy/main.py` | Done |
+| 4 | U-Net on MNIST | `exercise_4/` | Up next |
+| 5 | Action-conditioned generation | `exercise_5/` | — |
+| 6 | DIAMOND (real world model) | `exercise_6/` | — |
