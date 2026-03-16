@@ -8,6 +8,7 @@ import math
 import matplotlib.pyplot as plot
 
 device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+print(f"Using device: {device}")
 
 @torch.no_grad()
 def sample(model, alpha_bars, T = 1000,num_samples = 10):
@@ -84,41 +85,27 @@ if __name__ == '__main__':
         transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
-  ])
-        
-    )
-    dataloader = DataLoader(dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
+  ]))
+
+    
+    # Load entire dataset into GPU once — MNIST is ~190MB, no reason to keep hitting CPU
+    loader = DataLoader(dataset, batch_size=4096, num_workers=4, pin_memory=True)
+    all_images = torch.cat([imgs for imgs, _ in loader]).to(device)  # [60000, 1, 28, 28]
+    N = len(all_images)
+    batch_size = 1024
+
     alpha_bars = get_noise_schedule()
-
-    # images, labels = next(iter(dataloader))
-
-    # Visualize forward diffusion on 3 images across 5 timesteps
-    # timesteps = [0, 10, 50, 100, 150, 199]
-    # num_images = 3
-    # fig, axes = plot.subplots(num_images, len(timesteps), figsize=(15, 9))
-
-    # for row in range(num_images):
-    #     img = images[row]  # [1, 28, 28]
-    #     for col, t in enumerate(timesteps):
-    #         t_tensor = torch.tensor([t])
-    #         x_t, _ = forward_diffusion(img.unsqueeze(0), t_tensor, alpha_bars)
-    #         axes[row, col].imshow(x_t.squeeze().numpy(), cmap='gray')
-    #         axes[row, col].set_title(f't={t}')
-    #         axes[row, col].axis('off')
-
-    # plot.tight_layout()
-    # plot.savefig('diffusion_MNIST/forward_diffusion.png')
-    # plot.show()
 
     model = SimpleUNet().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr = 2e-4)
-    num_epochs = 50
+    num_epochs = 1000
 
     for epoch in range(num_epochs):
         total_loss = 0
-        for batch, _ in dataloader:
-            batch = batch.to(device)
-            t = torch.randint(0,999,size = (len(batch),)).to(device)
+        perm = torch.randperm(N, device=device)
+        for i in range(0, N, batch_size):
+            batch = all_images[perm[i:i+batch_size]]
+            t = torch.randint(0, 999, size=(len(batch),), device=device)
             x_t, epsilon = forward_diffusion(batch, t, alpha_bars)
             epsilon_pred = model(x_t, t)
             loss = F.mse_loss(epsilon_pred, epsilon)
@@ -127,8 +114,9 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-        if(epoch % 1 == 0) :
-                print(f"Epoch : {epoch} | Loss: {total_loss / len(dataloader)}")
+        num_steps = math.ceil(N / batch_size)
+        if epoch % 1 == 0:
+            print(f"Epoch : {epoch} | Loss: {total_loss / num_steps}")
 
         # generate and plot
     generated = sample(model, alpha_bars).cpu()  # [10, 1, 28, 28]
