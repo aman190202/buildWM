@@ -38,10 +38,8 @@ I'm learning **diffusion models** from scratch to eventually understand and impl
 
 ```
 diffusion_models_learning_guide.md  — The exercise guide (6 exercises)
-exercise_1/                         — Forward process on 2D spiral data
-exercise_2/                         — Noise prediction MLP
-exercise_3/                         — Sampling loop (generating spiral points)
-exercise_4/                         — U-Net on MNIST
+diffusion_toy/main.py               — Exercises 1-3: forward process, MLP, sampling on 2D spiral
+diffusion_MNIST/main.py             — Exercise 4: U-Net on MNIST (in progress)
 exercise_5/                         — Action-conditioned U-Net
 exercise_6/                         — DIAMOND (real repo)
 ```
@@ -59,6 +57,13 @@ These don't need re-explanation:
 - **Sampling reverse step:** start from randn, iteratively apply `x_{t-1} = (1/sqrt(alpha_t)) * (x_t - (beta_t/sqrt(1-alpha_bar_t)) * eps_pred) + sqrt(beta_t) * z`
 - **Why z (fresh noise) in sampling:** keeps generation stochastic; without it all samples converge to same output. z=0 at t=0 to avoid dirtying final output.
 - **U-Net:** encoder-decoder with skip connections. Timestep injected via sinusoidal embedding added to each block
+- **Conv2d for downsampling:** `kernel=3, stride=2, padding=1` halves spatial size. `Conv2d(in_ch, out_ch, ...)` args are channels not spatial sizes.
+- **ConvTranspose2d for upsampling:** `kernel=4, stride=2, padding=1` doubles spatial size. Output formula: `(input-1)*stride - 2*padding + kernel`.
+- **Skip connections:** `torch.cat([dec_out, enc_out], dim=1)` along channel dim=1. This is why decoder input channels are doubled (128, 64).
+- **Timestep injection in conv blocks:** reshape `t_emb` to `[B, C, 1, 1]` and add to feature maps. Need separate projections for 32-channel and 64-channel blocks.
+- **Image tensor dims:** `[B, C, H, W]` — batch, channels, height, width. Cat along dim=1 for skip connections, dim=0 for more samples.
+- **Normalizing MNIST to [-1, 1]:** `transforms.Normalize((0.5,), (0.5,))` — matches noise distribution N(0,1), makes training more stable.
+- **DataLoader traversal:** one epoch = full dataset. `next(iter(dataloader))` gets one batch. `num_workers=4, pin_memory=True` speeds up GPU training.
 - **Sampling:** start from pure noise, iteratively predict and remove noise using the trained network
 - **Action conditioning:** embed the action, add it alongside timestep embedding in each U-Net block
 - **Why Gaussian policies exist:** the randomness (σ × ε) provides exploration, and log_prob gives you a differentiable loss in the absence of ground truth labels
@@ -80,8 +85,11 @@ Ask me about these before assuming I understand:
 - Forgetting `.detach()` or `torch.no_grad()` during sampling
 - Indexing alpha_bars with wrong timestep (off-by-one)
 - Not reshaping timestep embeddings before adding to conv feature maps (need [B, C, 1, 1])
-- Mixing up which dimension is batch vs channel vs spatial in conv ops
+- Mixing up which dimension is batch vs channel vs spatial in conv ops — remember `[B, C, H, W]`
+- Confusing spatial sizes with channel counts in `Conv2d` arguments — args are `(in_channels, out_channels, kernel_size)`, not spatial sizes
+- Using `[:, None]` for image tensors — images need `[:, None, None, None]` to broadcast across all spatial dims
 - Forgetting to normalize input images to [-1, 1] range before training
+- Passing `t` named as `T` (variable name collision with total timesteps)
 - Using `math.sqrt` on tensors instead of `torch.sqrt`
 - Passing plain integer `t` to the model instead of a batched tensor `t_batch`
 - Shape mismatches when multiplying `[batch]` × `[batch, 2]` — need `[:, None]` to broadcast
